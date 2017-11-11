@@ -1,14 +1,15 @@
 import random as rnd
+from copy import deepcopy
 
 #-----------------Parameters modified here-----------------#
 # Define the utility matrix here
 U = [[[2,-1],[3,0]],[[2,3],[-1,0]]]  # The matrix is 2 by 2 by 2
 
 # Define the game scality here
-N = 100  # Initial number of players
+N = 4  # Initial number of players
 P = 0.5  # Initial strategy of players
-R = 30   # The rounds played
-M = 200  # The number of games played in each round
+R = 1   # The rounds played
+M = 2  # The number of games played in each round
 
 
 #-------------------Classes defined here-------------------#
@@ -22,6 +23,9 @@ class player:
 
 	def index(self):             # Get id of the player
 		return self._id
+
+	def initstrategy(self):
+		return self._initstrategy
 
 	def strategy(self, idx = -1):
 		if idx == -1:                    # Default return the strategy
@@ -70,12 +74,26 @@ class game:
 		return self._players[idex]
 
 	def play(self, rounds, m):       # Play the game with a certain rounds and for each rounds there is m times match
+		# Initialize the data set needs recording
+		d_actions = [[-1] * rounds for i in range(self.population())]  # -1 indicates doing nothing
+		                                                               # 0 will indicate cooperation
+		                                                               # 1 will indicate betrayal
+		d_points = [[0] * rounds for i in range(self.population())]    # The points of each player after each round
+		d_strategys = [[{} for j in range(rounds)] for i in range(self.population())]
+																	   # The strategy of each player after each round
+
 		for i in range(rounds):
+			played = set([])
 			for j in range(m):
 				id_a = rnd.randint(0, self.population() - 1)  # Player one
+				while id_a in played:
+					id_a = rnd.randint(0, self.population() - 1)
+				played.add(id_a)
+
 				id_b = rnd.randint(0, self.population() - 1)  # Player two
-				while id_b == id_a:                           # Player two should be the same as player one
+				while id_b in played:                         # Player two should not be the same as player one
 					id_b = rnd.randint(0, self.population() - 1)
+				played.add(id_b)
 
 				action_a = self.players(id_a).playwith(self.players(id_b)) # The action of player one
 				action_b = self.players(id_b).playwith(self.players(id_a)) # The action of player two
@@ -88,7 +106,20 @@ class game:
 				self.players(id_b).modify_strategy()
 				#---------These two claues need modifying(and also maybe their position)---------#
 
+				# Record data into the data set
+				# Actions
+				d_actions[id_a][i] = action_a
+				d_actions[id_b][i] = action_b
+			# Points
+			for j in range(self.population()):
+				d_points[j][i] = self.players(j).points()
+				# Strategy
+				d_strategys[j][i] = deepcopy(self.players(j).strategy())
+
+		# Return the data sets
+		return d_actions, d_points, d_strategys
+
 
 #---------------Main program goes from here----------------#
 new_game = game(N, P, U)
-new_game.play(R, M)
+(actions_data, points_data, strategys_data) = new_game.play(R, M)
