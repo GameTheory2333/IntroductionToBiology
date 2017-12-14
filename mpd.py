@@ -7,22 +7,93 @@ U = [[[2,-1],[3,0]],[[2,3],[-1,0]]]  # The matrix is 2 by 2 by 2
 
 # Define the game scality here
 N = 4  # Initial number of players
-P = 0.5  # Initial strategy of players
-R = 1   # The rounds played
+P = [0.0, 0.5, 1.0]  # Initial strategies of players
+R = 2   # The rounds played
 M = 2  # The number of games played in each round
+T = ["Constant", "Random"] # The types contained in the game
+PT = 0.5 # The proportion of the types
 
+# Define Types
+#----------------------------------------------------------#
+# Non-memory
+'''
+Constant:	never change his/her strategy, the inital strategy
+        	will indicate the concrete type of the person;
+Random:		change his/ her strategy randomly;
+'''
+Types = ["Constant", "Random"]
+#----------------------------------------------------------#
+
+# Write data in file with json format
+#----------------------------------------------------------#
+def wdata_points(data):
+	f = open("data\\points.json", 'w')
+	n = len(data)
+	m = len(data[0])
+	print("{", file=f)
+
+	print('  "ID":[', end="", file=f)
+	for i in range(n-1):
+		print('"'+str(i)+'"', end=",", file=f)
+	print('"'+str(n-1)+'"],', file=f)
+
+	for i in range(m-1):
+		print('  "ROUND'+str(i+1)+'":[', end="", file=f)
+		for j in range(n-1):
+			print('"'+str(data[j][i])+'"', end=",", file=f)
+		print('"'+str(data[n-1][i])+'"],', file=f)
+
+	print('  "ROUND'+str(m)+'":[', end="", file=f)
+	for j in range(n-1):
+		print('"'+str(data[j][m-1])+'"', end=",", file=f)
+	print('"'+str(data[n-1][m-1])+'"]', file=f)
+
+	print("}", file=f)
+
+	f.close()
+
+def wdata_actions(data):
+	f = open("data\\actions.json", 'w')
+	n = len(data)
+	m = len(data[0])
+	print("{", file=f)
+
+	print('  "ID":[', end="", file=f)
+	for i in range(n-1):
+		print('"'+str(i)+'"', end=",", file=f)
+	print('"'+str(n-1)+'"],', file=f)
+
+	for i in range(m-1):
+		print('  "ROUND'+str(i+1)+'":[', end="", file=f)
+		for j in range(n-1):
+			print('"'+str(data[j][i])+'"', end=",", file=f)
+		print('"'+str(data[n-1][i])+'"],', file=f)
+
+	print('  "ROUND'+str(m)+'":[', end="", file=f)
+	for j in range(n-1):
+		print('"'+str(data[j][m-1])+'"', end=",", file=f)
+	print('"'+str(data[n-1][m-1])+'"]', file=f)
+
+	print("}", file=f)
+
+	f.close()
+#----------------------------------------------------------#
 
 #-------------------Classes defined here-------------------#
 # Class for the each player
 class player:
-	def __init__(self, idex, p0):
+	def __init__(self, idex, p0, Type):
 		self._id = idex          # The index of the player, which will be set at the initial
-		self._initstrategy = p0  # The player should have an initial strategy, which is same for everyone in base model
+		self._initstrategy = p0  # The player should have an initial strategy
 		self._strategy = {}      # The player can distinguish each other in the base model so the strategies stored in a dictionary
 		self._points = 0         # The initial score of the player is 0
+		self._type = Type
 
 	def index(self):             # Get id of the player
 		return self._id
+
+	def getType(self):
+		return self._type
 
 	def initstrategy(self):
 		return self._initstrategy
@@ -37,8 +108,12 @@ class player:
 		self._strategy[idx] = self._initstrategy
 
 	#----------------To be implenmented----------------#
-	def modify_strategy(self):
-		pass
+	def modify_strategy(self, idx):
+		if self.getType() == "Constant":
+			pass
+		elif self.getType() == "Random":
+			new_strategy = rnd.random()
+			self._strategy[idx] = new_strategy
 	#----------------To be implenmented----------------#
 
 	def points(self):
@@ -60,12 +135,17 @@ class player:
 
 # Class for the game
 class game:
-	def __init__(self, n, p0, M):
+	def __init__(self, n, p0, M, Types, Prop):
+		#---------------Need Modified---------------#
 		self.utility = M                         # The utility matrix for each game
 		self._population = n                     # The number of players is a certain number in the base model
-		self._players = []                       # Generate the list of players where each has an id and same initial strategy
-		for i in range(n):
-			self._players.append(player(i, p0))
+		self._players = []                       # Generate the list of players where each has an id
+		p = int(Prop * n)
+		for i in range(p):
+			self._players.append(player(i, p0[1], Types[0]))
+		for i in range(p, n):
+			self._players.append(player(i, p0[1], Types[1]))
+		#---------------Need Modified---------------#
 
 	def population(self):            # Get the number of the players
 		return self._population
@@ -102,8 +182,8 @@ class game:
 				self.players(id_b).add_points(self.utility[1][action_a][action_b]) # Update the score of player two
 
 				#---------These two claues need modifying(and also maybe their position)---------#
-				self.players(id_a).modify_strategy()
-				self.players(id_b).modify_strategy()
+				self.players(id_a).modify_strategy(id_b)
+				self.players(id_b).modify_strategy(id_a)
 				#---------These two claues need modifying(and also maybe their position)---------#
 
 				# Record data into the data set
@@ -121,5 +201,15 @@ class game:
 
 
 #---------------Main program goes from here----------------#
-new_game = game(N, P, U)
-(actions_data, points_data, strategys_data) = new_game.play(R, M)
+if __name__ == '__main__':
+	print("Initializing...")
+	new_game = game(N, P, U, T, PT)
+
+	print("Simulating...")
+	(actions_data, points_data, strategys_data) = new_game.play(R, M)
+
+	print("Writing Results...")
+	wdata_points(points_data)
+	wdata_actions(actions_data)
+
+	print("Done")
